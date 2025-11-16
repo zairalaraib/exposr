@@ -1,12 +1,16 @@
-import { getCapturedPhoto } from "./index";
-import { ActivityIndicator, Image, ScrollView, StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import { Image, ScrollView, StyleSheet, Text, View } from "react-native";
 import { useEffect, useState } from "react";
 import { useRouter } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { usePhoto } from "../contexts/PhotoContext";
 import OpenAI from "openai";
+import { Button } from "../components/ui/Button";
+import { Card } from "../components/ui/Card";
+import { LoadingSpinner } from "../components/ui/LoadingSpinner";
+import { BrandColors, Spacing, BorderRadius, Typography, Shadows, SemanticColors, currentTheme } from "../constants/theme";
 
 export default function ResultScreen() {
-  const [photo, setPhoto] = useState(null);
+  const { photo } = usePhoto();
   const [analysis, setAnalysis] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
@@ -14,12 +18,9 @@ export default function ResultScreen() {
   const insets = useSafeAreaInsets();
 
   useEffect(() => {
-    const captured = getCapturedPhoto();
-    setPhoto(captured);
-    
-    if (captured && captured.base64) {
-      analyzeMeal(captured.base64);
-    } else if (captured) {
+    if (photo && photo.base64) {
+      analyzeMeal(photo.base64);
+    } else if (photo) {
       setError("Photo captured but base64 data is missing");
     } else {
       setError("No photo data found");
@@ -98,59 +99,68 @@ export default function ResultScreen() {
 
         {/* Photo Display */}
         {photo && photo.uri && (
-          <View style={styles.imageContainer}>
+          <Card style={styles.imageCard} elevated>
             <Image 
               source={{ uri: photo.uri }} 
               style={styles.image}
               resizeMode="cover"
             />
-          </View>
+          </Card>
         )}
 
         {/* Loading State */}
         {loading && (
-          <View style={styles.loadingContainer}>
-            <ActivityIndicator size="large" color="#0a7ea4" />
-            <Text style={styles.loadingText}>Analyzing your meal...</Text>
-            <Text style={styles.loadingSubtext}>This may take a few seconds</Text>
-          </View>
+          <Card style={styles.loadingCard} elevated>
+            <LoadingSpinner 
+              message="Analyzing your meal..."
+              submessage="This may take a few seconds"
+            />
+          </Card>
         )}
 
         {/* Error State */}
         {error && !loading && (
-          <View style={styles.errorContainer}>
-            <Text style={styles.errorIcon}>⚠️</Text>
-            <Text style={styles.errorTitle}>Oops!</Text>
-            <Text style={styles.errorText}>{error}</Text>
-            <TouchableOpacity 
-              style={styles.retryButton}
-              onPress={() => photo?.base64 && analyzeMeal(photo.base64)}
-            >
-              <Text style={styles.retryButtonText}>Try Again</Text>
-            </TouchableOpacity>
-          </View>
+          <Card style={styles.errorCard} elevated>
+            <View style={styles.errorContent}>
+              <Text style={styles.errorIcon}>⚠️</Text>
+              <Text style={styles.errorTitle}>Oops!</Text>
+              <Text style={styles.errorText}>{error}</Text>
+              {photo?.base64 && (
+                <Button
+                  title="Try Again"
+                  onPress={() => analyzeMeal(photo.base64)}
+                  variant="primary"
+                  size="medium"
+                  style={styles.retryButton}
+                />
+              )}
+            </View>
+          </Card>
         )}
 
         {/* Analysis Results */}
         {analysis && !loading && (
-          <View style={styles.analysisContainer}>
+          <Card style={styles.analysisCard} elevated>
             <View style={styles.analysisHeader}>
-              <Text style={styles.analysisTitle}>📊 Analysis Results</Text>
+              <Text style={styles.analysisIcon}>📊</Text>
+              <Text style={styles.analysisTitle}>Analysis Results</Text>
             </View>
             <View style={styles.analysisContent}>
               <Text style={styles.analysisText}>{analysis}</Text>
             </View>
-          </View>
+          </Card>
         )}
 
         {/* Action Buttons */}
         <View style={styles.actionsContainer}>
-          <TouchableOpacity 
-            style={styles.retakeButton}
+          <Button
+            title="📷 Retake Photo"
             onPress={handleRetake}
-          >
-            <Text style={styles.retakeButtonText}>📷 Retake Photo</Text>
-          </TouchableOpacity>
+            variant="outline"
+            size="large"
+            fullWidth
+            style={styles.retakeButton}
+          />
         </View>
       </ScrollView>
     </View>
@@ -160,142 +170,99 @@ export default function ResultScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#f5f5f5",
+    backgroundColor: currentTheme.background,
   },
   scrollView: {
     flex: 1,
   },
   scrollContent: {
-    paddingBottom: 40,
+    paddingBottom: Spacing.xl,
   },
   header: {
-    padding: 24,
-    paddingBottom: 16,
-    backgroundColor: "#fff",
+    padding: Spacing.lg,
+    paddingBottom: Spacing.md,
+    backgroundColor: currentTheme.surface,
     borderBottomWidth: 1,
-    borderBottomColor: "#e0e0e0",
+    borderBottomColor: currentTheme.border,
+    ...Shadows.sm,
   },
   title: {
-    fontSize: 32,
-    fontWeight: "bold",
-    color: "#111",
-    marginBottom: 4,
+    ...Typography.h1,
+    color: currentTheme.text,
+    marginBottom: Spacing.xs,
   },
   subtitle: {
-    fontSize: 16,
-    color: "#666",
+    ...Typography.body,
+    color: currentTheme.textSecondary,
   },
-  imageContainer: {
-    margin: 16,
-    borderRadius: 16,
-    overflow: "hidden",
-    backgroundColor: "#fff",
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
-    elevation: 4,
+  imageCard: {
+    margin: Spacing.md,
+    overflow: 'hidden',
   },
   image: {
     width: "100%",
-    height: 300,
+    height: 320,
+    borderRadius: BorderRadius.lg,
   },
-  loadingContainer: {
-    padding: 40,
-    alignItems: "center",
-    justifyContent: "center",
+  loadingCard: {
+    margin: Spacing.md,
   },
-  loadingText: {
-    marginTop: 16,
-    fontSize: 18,
-    fontWeight: "600",
-    color: "#111",
-  },
-  loadingSubtext: {
-    marginTop: 8,
-    fontSize: 14,
-    color: "#666",
-  },
-  errorContainer: {
-    margin: 16,
-    padding: 24,
-    backgroundColor: "#fff",
-    borderRadius: 16,
-    alignItems: "center",
+  errorCard: {
+    margin: Spacing.md,
     borderWidth: 1,
-    borderColor: "#ffebee",
+    borderColor: SemanticColors.error + '20',
+  },
+  errorContent: {
+    alignItems: 'center',
+    padding: Spacing.sm,
   },
   errorIcon: {
-    fontSize: 48,
-    marginBottom: 8,
+    fontSize: 56,
+    marginBottom: Spacing.md,
   },
   errorTitle: {
-    fontSize: 20,
-    fontWeight: "bold",
-    color: "#d32f2f",
-    marginBottom: 8,
+    ...Typography.h4,
+    color: SemanticColors.error,
+    marginBottom: Spacing.sm,
   },
   errorText: {
-    fontSize: 14,
-    color: "#666",
-    textAlign: "center",
-    marginBottom: 16,
-    lineHeight: 20,
-  },
-  retryButton: {
-    backgroundColor: "#0a7ea4",
-    paddingVertical: 12,
-    paddingHorizontal: 24,
-    borderRadius: 8,
-    marginTop: 8,
-  },
-  retryButtonText: {
-    color: "#fff",
-    fontSize: 16,
-    fontWeight: "600",
-  },
-  analysisContainer: {
-    margin: 16,
-    backgroundColor: "#fff",
-    borderRadius: 16,
-    overflow: "hidden",
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
-    elevation: 4,
-  },
-  analysisHeader: {
-    backgroundColor: "#0a7ea4",
-    padding: 16,
-  },
-  analysisTitle: {
-    fontSize: 20,
-    fontWeight: "bold",
-    color: "#fff",
-  },
-  analysisContent: {
-    padding: 20,
-  },
-  analysisText: {
-    fontSize: 15,
-    color: "#333",
+    ...Typography.body,
+    color: currentTheme.textSecondary,
+    textAlign: 'center',
+    marginBottom: Spacing.lg,
     lineHeight: 24,
   },
+  retryButton: {
+    marginTop: Spacing.sm,
+  },
+  analysisCard: {
+    margin: Spacing.md,
+  },
+  analysisHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: BrandColors.primary,
+    padding: Spacing.md,
+    gap: Spacing.sm,
+  },
+  analysisIcon: {
+    fontSize: 24,
+  },
+  analysisTitle: {
+    ...Typography.h4,
+    color: '#FFFFFF',
+    flex: 1,
+  },
+  analysisContent: {
+    padding: Spacing.lg,
+  },
+  analysisText: {
+    ...Typography.body,
+    color: currentTheme.text,
+    lineHeight: 26,
+  },
   actionsContainer: {
-    paddingHorizontal: 16,
-    marginTop: 8,
-  },
-  retakeButton: {
-    backgroundColor: "#111",
-    paddingVertical: 16,
-    borderRadius: 12,
-    alignItems: "center",
-    marginTop: 8,
-  },
-  retakeButtonText: {
-    color: "#fff",
-    fontSize: 16,
-    fontWeight: "600",
+    paddingHorizontal: Spacing.md,
+    marginTop: Spacing.md,
   },
 });
