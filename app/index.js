@@ -1,10 +1,20 @@
 import { CameraView, useCameraPermissions } from "expo-camera";
-import { useRef } from "react";
-import { Text, TouchableOpacity, View } from "react-native";
+import { useRouter } from "expo-router";
+import { useRef, useState } from "react";
+import { Alert, Text, TouchableOpacity, View } from "react-native";
 
-export default function CameraScreen({ navigation }) {
+// Simple in-memory storage for the photo
+let capturedPhoto = null;
+
+export function getCapturedPhoto() {
+  return capturedPhoto;
+}
+
+export default function CameraScreen() {
   const [permission, requestPermission] = useCameraPermissions();
   const cameraRef = useRef(null);
+  const router = useRouter();
+  const [isProcessing, setIsProcessing] = useState(false);
 
   if (!permission) return <View style={{ flex: 1, backgroundColor: "#fff" }} />;
 
@@ -22,11 +32,41 @@ export default function CameraScreen({ navigation }) {
   }
 
   async function takePhoto() {
-    if (!cameraRef.current) return;
+    if (isProcessing) return;
+    
+    try {
+      setIsProcessing(true);
+      
+      if (!cameraRef.current) {
+        Alert.alert("Error", "Camera is not ready");
+        setIsProcessing(false);
+        return;
+      }
 
-    const photo = await cameraRef.current.takePictureAsync({ base64: true });
+      console.log("Taking photo...");
+      const photo = await cameraRef.current.takePictureAsync({ base64: true });
+      
+      if (!photo) {
+        Alert.alert("Error", "Failed to capture photo");
+        setIsProcessing(false);
+        return;
+      }
 
-    navigation.navigate("result", { base64: photo.base64 });
+      console.log("Photo captured successfully");
+      console.log("Photo URI:", photo.uri);
+      console.log("Has base64:", !!photo.base64);
+      
+      // Store photo in memory (better than URL params for large data)
+      capturedPhoto = photo;
+      
+      console.log("Navigating to result screen...");
+      // Navigate without params - we'll retrieve from memory
+      router.push("/result");
+    } catch (error) {
+      console.error("Error taking photo:", error);
+      Alert.alert("Error", `Failed to take photo: ${error.message}`);
+      setIsProcessing(false);
+    }
   }
 
   return (
@@ -40,17 +80,20 @@ export default function CameraScreen({ navigation }) {
 
       <TouchableOpacity
         onPress={takePhoto}
+        disabled={isProcessing}
         style={{
           position: "absolute",
           bottom: 40,
           alignSelf: "center",
-          backgroundColor: "#111",
+          backgroundColor: isProcessing ? "#666" : "#111",
           paddingVertical: 14,
           paddingHorizontal: 32,
           borderRadius: 999,
         }}
       >
-        <Text style={{ color: "#fff", fontSize: 16 }}>Analyze Meal</Text>
+        <Text style={{ color: "#fff", fontSize: 16 }}>
+          {isProcessing ? "Processing..." : "Analyze Meal"}
+        </Text>
       </TouchableOpacity>
     </View>
   );
